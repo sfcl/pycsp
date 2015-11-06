@@ -118,16 +118,16 @@ class Installer(object):
     def get_version(self):
         """Получить версию программы csptest
         """
-        if self.path_exist(dir_path='./bin/sigcheck.exe'):
+        if self.path_exist(dir_path='./bin/filever.exe'):
             pass
         else:
-            self.send_error('Не найдена программа sigcheck. Дальнейшее продолжение невозможно.')
+            self.send_error('Не найдена программа filever.exe. Дальнейшее продолжение невозможно.')
             sys.exit(1)
         
-        pipe = subprocess.Popen([ self.current_path + '\\bin\\' + 'sigcheck.exe', '-q' , self.dp], shell=True, stdout=subprocess.PIPE)
-        raw_string = pipe.stdout.read().decode('UTF-8')
+        pipe = subprocess.Popen([ self.current_path + '\\bin\\' + 'filever.exe', '-v' , self.dp], shell=True, stdout=subprocess.PIPE)
+        raw_string = pipe.stdout.read().decode('UTF-8', 'ignore')
 
-        result = re.findall("Prod version:\s+(.*)\r\n", raw_string, re.MULTILINE)
+        result = re.findall("FileVersion\s+(.*)\r\n", raw_string, re.MULTILINE)
         result = result[0]
 
         # выбираем первые две цифры в названии
