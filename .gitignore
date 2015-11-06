@@ -2,3 +2,6 @@
 gv2.py
 gv.py
 
+__pycache__/
+
+

@@ -12,6 +12,8 @@ class Installer(object):
     def __init__(self):
         self.current_path = os.path.dirname(os.path.abspath(__file__))
         self.ver = ''
+        self.key_conteyner = ''
+        self.user_name = ''
         self.select_number = 0
         self.dp = self.search_distrib()
         
@@ -31,7 +33,9 @@ class Installer(object):
 
         # подготивительные действия к установке ЭП
         self.clear_flash() # очищаем флешку от старых контейнеров
-        self.copy_ecp()
+        self.copy_ecp()    # копируем файлы и каталог с контейнером на флешку
+
+        self.key_conteyner = self.choose_conteyner()
 
 
     def search_distrib(self):
@@ -89,9 +93,8 @@ class Installer(object):
         return
 
     def input_number(self):
-        """Примитивный диалог взаимодействия с пользователем
+        """Примитивный диалог взаимодействия с пользователем. Определяет атрибут self.user_name.
         """
-        
         num = input('Введите номер устанавливаемого ЭЦП = ')
         try:
             num = int(num)
@@ -103,6 +106,14 @@ class Installer(object):
             self.select_number = num
         except KeyError:
             print('Веденое число не принадлежит доступному диапазону.')
+            sys.exit(1)
+
+        # определяем имя закрытого контейнера
+        tmp = self.ecps.get(self.select_number)
+        #tmp = tmp.split(' ')
+        tmp = re.split('\s+', tmp)
+        tmp = tmp[0] + '_' +tmp[1][0] + tmp[2][0]
+        self.user_name = tmp
 
     def get_version(self):
         """Получить версию программы csptest
@@ -128,7 +139,7 @@ class Installer(object):
     def clear_flash(self):
         """Очищаем флешку от старых ЭП
         """
-        folder = settings.FLASH_PATH
+        folder = settings.FLASH_PATH + ':'
         for the_file in os.listdir(folder):
             file_path = os.path.join(folder, the_file)
             try:
@@ -145,23 +156,90 @@ class Installer(object):
         """Производим копирование закрытого контейнера на флеш
         """
         src_dir = settings.ECP_PATH + self.ecps[self.select_number] + '/'
-        dst_dir = settings.FLASH_PATH
+        dst_dir = settings.FLASH_PATH + ':'
         for fs_item in os.listdir(src_dir):
             file_path = os.path.join(src_dir, fs_item)
             if os.path.isdir(file_path):
                 # если элемент ФС является каталогом
-                #pass
                 shutil.copytree(file_path, dst_dir + fs_item, ignore=None)
             else:
                 # если элемент ФС является файлом
                 shutil.copy2(file_path, dst_dir)
-            #print(file_path)
 
+        return None
+
+    def install_ep(self):
+        """Установка ЭП
+        """
+        if self.ver == '3.9':
+            dst_cont = '\\\\.\\REGISTRY\\' + self.user_name
+            big_array_list = [
+                            self.dp, '-keycopy', 
+                            '-src', self.key_conteyner,
+                            '-pinsrc', '',
+                            '-dest', dst_cont,
+                            '-pindest', ''
+                            ]
+            pipe = subprocess.Popen(big_array_list, shell=True, stdout=subprocess.PIPE)
+            raw_string = pipe.stdout.read().decode('UTF-8')
+            print('raw_string', raw_string)
+        else:
+            print('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
+            sys.exit(1)
         
         
-        #return
+    def install_crt(self):
+        """Установка сертификата в закрытый контейнер
+        """
+        # "C:\Program Files (x86)\Crypto Pro\CSP\csptest" -property -cinstall  -container "Иванов_ИИ"
+        if self.ver == '3.9':
+            big_array_list = [
+                            self.dp, 
+                            '-property',
+                            '-cinstall',
+                            '-container',
+                            self.user_name
+                            ]
+            pipe = subprocess.Popen(big_array_list, shell=True, stdout=subprocess.PIPE)
+            raw_string = pipe.stdout.read().decode('UTF-8', 'ignore')
+            print('raw_string', raw_string)
+        else:
+            print('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
+            sys.exit(1)
 
+
+    def list_key_conteyners(self):
+        """Перечисляет список установленных физических контейнеров (флешки, дискеты, етокены)
+        """        
+        # "C:\Program Files (x86)\Crypto Pro\CSP\csptest" -keyset -enum_containers -verifycontext -fqcn  -machinekeys
+        if self.ver == '3.9':
+            key_list = [    self.dp, 
+                            '-keyset',
+                            '-enum_containers', 
+                            '-verifycontext', 
+                            '-fqcn',
+                            '-machinekeys',
+                            ]
+            pipe = subprocess.Popen(key_list, shell=True, stdout=subprocess.PIPE)
+            raw_string = pipe.stdout.read().decode('UTF-8', 'ignore')
+            result = re.findall(r'(\\.*)\r\n', raw_string, re.MULTILINE)
+            return result
+        else:
+            print('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
+            sys.exit(1)
+
+    def choose_conteyner(self):
+        """Выбор нужного ключевого контейнера
+        """
+        res = self.list_key_conteyners()
+        search_pat = 'FAT12_' + settings.FLASH_PATH.upper()
+        for elem in res:
+            if re.search(search_pat , elem):
+                return elem
+        return None
 
 if __name__ == '__main__':
     ins = Installer()
-    #print(ins.search_distrib())
+    # утсанавливаем ЭП
+    ins.install_ep()
+    ins.install_crt()
