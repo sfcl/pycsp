@@ -181,7 +181,7 @@ class Installer(object):
                             '-pindest', ''
                             ]
             pipe = subprocess.Popen(big_array_list, shell=True, stdout=subprocess.PIPE)
-            raw_string = pipe.stdout.read().decode('UTF-8')
+            raw_string = pipe.stdout.read().decode('UTF-8', 'ignore')
             print('raw_string', raw_string)
         else:
             print('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
