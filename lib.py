@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 
-import sys, os, re, shutil
+import sys, os, re, shutil, glob
 import subprocess
 import logging
 import settings
+from cert_info import cert_info
 
 class Installer(object):
     """Установщик ЭЦП в реестр КриптоПРО
     """
     def __init__(self):
         self.current_path = os.path.dirname(os.path.abspath(__file__))
+        self.ecp_structure = {} 
+        # { 'nlastname': {'ep_path': 'C:/ECP/nlasnmame', 'fio' : 'Иванов Иван Иванович', 'inx': 5} }
         self.ver = ''
         self.key_conteyner = ''
         self.user_name = ''
@@ -45,7 +48,7 @@ class Installer(object):
         self.copy_ecp()    # копируем файлы и каталог с контейнером на флешку
 
         self.key_conteyner = self.choose_conteyner()
-        logging.debug('Ключевой контейнер %s' % (self.key_conteyner,))
+        #logging.debug('Ключевой контейнер %s' % (self.key_conteyner,))
 
     def search_distrib(self):
         """Поиск каталога установки КриптоПРО
@@ -84,19 +87,32 @@ class Installer(object):
         counter = 1
         for elem in ld:
             temp_dict[counter] = elem
+            cert_pattern = settings.ECP_PATH + '/' + elem + '/*.cer'
+            cert_file = glob.glob(cert_pattern)
+            cert_file = cert_file[0]
+            fio = cert_info(cert_file)
+            self.ecp_structure[elem] = {'ep_path':  settings.ECP_PATH + '/' + elem,
+                                        'fio': fio, 'inx': counter,
+                                        }
             counter += 1
         temp_dict['len'] = counter - 1
 
         return temp_dict
         
     def print_list_ecp(self):
-        """Распечатка списка закрытых контейнеров и сертификатов
+        """Распечатка списка закрытых контейнеров и сертификатов.
+            Упорядоченных по возрастанию.
         """    
-        for inx in range(1, self.ecps['len'] + 1):
-            print('%s : %s' % (inx, self.ecps[inx]))
+        # { 'nlastname': {'ep_path': 'C:/ECP/nlasnmame', 'fio' : 'Иванов Иван Иванович', 'inx': 5} }
+        for k in self.ecp_structure.keys():
+            print('%2s  :  %2s' % (self.ecp_structure[k]['inx'], self.ecp_structure[k]['fio'],))
+         
+        #for inx in range(1, self.ecps['len'] + 1):
+        #    print('%s : %s' % (inx, self.ecps[inx]))
+        return
         
     def send_error(self, message):
-        """Сообщить о ошибке
+        """Сообщить о ошибке.
         """
         print(message)
         return
@@ -292,6 +308,7 @@ class Installer(object):
         """Очищаем за собой флешку от ненужных файлов.
         """
         self.clear_flash()
+        #logging.info(self.ecp_structure)
 
 
 if __name__ == '__main__':
