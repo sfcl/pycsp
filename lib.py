@@ -26,8 +26,6 @@ class Installer(object):
                             level = logging.DEBUG )
         
         # завершаем настройку
-        logging.info('TEST')
-
         if not self.distr_path :
             self.send_error('Программа КриптоПРО не установлена!')
             sys.exit(1)
@@ -47,7 +45,7 @@ class Installer(object):
         self.copy_ecp()    # копируем файлы и каталог с контейнером на флешку
 
         self.key_conteyner = self.choose_conteyner()
-
+        logging.debug('Ключевой контейнер %s' % (self.key_conteyner,))
 
     def search_distrib(self):
         """Поиск каталога установки КриптоПРО
@@ -198,9 +196,9 @@ class Installer(object):
         elif self.ver == '4.0':
             big_array_list = [
                             self.distr_path, '-keycopy', 
-                            '-provsrc', self.key_conteyner,
+                            '-contsrc', self.key_conteyner,
                             '-pinsrc', '',
-                            '-provdest', dst_cont,
+                            '-contdest', dst_cont,
                             '-pindest', ''
                             ]
             pipe = subprocess.Popen(big_array_list, shell=True, stdout=subprocess.PIPE)
@@ -275,7 +273,6 @@ class Installer(object):
             pipe = subprocess.Popen(key_list, shell=True, stdout=subprocess.PIPE)
             raw_string = pipe.stdout.read().decode('UTF-8', 'ignore')
             result = re.findall(r'(\\.*)\r\n', raw_string, re.MULTILINE)
-            logging.debug(result)
             return result
         else:
             print('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
@@ -290,6 +287,12 @@ class Installer(object):
             if re.search(search_pat , elem):
                 return elem
         return None
+    
+    def __del__(self):
+        """Очищаем за собой флешку от ненужных файлов.
+        """
+        self.clear_flash()
+
 
 if __name__ == '__main__':
     ins = Installer()

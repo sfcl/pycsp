@@ -6,4 +6,4 @@ from lib import Installer
 ins = Installer()
 # утсанавливаем ЭП
 ins.install_ep()
-ins.install_crt()
+#ins.install_crt()
