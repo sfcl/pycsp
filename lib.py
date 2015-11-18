@@ -3,7 +3,7 @@
 
 import sys, os, re, shutil
 import subprocess
-
+import logging
 import settings
 
 class Installer(object):
@@ -15,9 +15,20 @@ class Installer(object):
         self.key_conteyner = ''
         self.user_name = ''
         self.select_number = 0
-        self.dp = self.search_distrib()
+        self.distr_path = self.search_distrib()
         
-        if not self.dp :
+        # Настраиваем логирование
+        if not os.path.exists(self.current_path + '/logs'):
+            os.makedirs(self.current_path + '/logs')
+        
+        logging.basicConfig(filename=self.current_path + '/logs/debug.log',
+                            format='%(asctime)s %(levelname)s:%(message)s',
+                            level = logging.DEBUG )
+        
+        # завершаем настройку
+        logging.info('TEST')
+
+        if not self.distr_path :
             self.send_error('Программа КриптоПРО не установлена!')
             sys.exit(1)
             return
@@ -124,7 +135,7 @@ class Installer(object):
             self.send_error('Не найдена программа filever.exe. Дальнейшее продолжение невозможно.')
             sys.exit(1)
         
-        pipe = subprocess.Popen([ self.current_path + '\\bin\\' + 'filever.exe', '-v' , self.dp], shell=True, stdout=subprocess.PIPE)
+        pipe = subprocess.Popen([ self.current_path + '\\bin\\' + 'filever.exe', '-v' , self.distr_path], shell=True, stdout=subprocess.PIPE)
         raw_string = pipe.stdout.read().decode('UTF-8', 'ignore')
 
         result = re.findall("FileVersion\s+(.*)\r\n", raw_string, re.MULTILINE)
@@ -171,10 +182,10 @@ class Installer(object):
     def install_ep(self):
         """Установка ЭП
         """
+        dst_cont = '\\\\.\\REGISTRY\\' + self.user_name
         if self.ver == '3.9':
-            dst_cont = '\\\\.\\REGISTRY\\' + self.user_name
             big_array_list = [
-                            self.dp, '-keycopy', 
+                            self.distr_path, '-keycopy', 
                             '-src', self.key_conteyner,
                             '-pinsrc', '',
                             '-dest', dst_cont,
@@ -183,6 +194,19 @@ class Installer(object):
             pipe = subprocess.Popen(big_array_list, shell=True, stdout=subprocess.PIPE)
             raw_string = pipe.stdout.read().decode('UTF-8', 'ignore')
             print('raw_string', raw_string)
+        
+        elif self.ver == '4.0':
+            big_array_list = [
+                            self.distr_path, '-keycopy', 
+                            '-provsrc', self.key_conteyner,
+                            '-pinsrc', '',
+                            '-provdest', dst_cont,
+                            '-pindest', ''
+                            ]
+            pipe = subprocess.Popen(big_array_list, shell=True, stdout=subprocess.PIPE)
+            raw_string = pipe.stdout.read().decode('UTF-8', 'ignore')
+            print('raw_string', raw_string)
+
         else:
             print('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
             sys.exit(1)
@@ -194,7 +218,7 @@ class Installer(object):
         # "C:\Program Files (x86)\Crypto Pro\CSP\csptest" -property -cinstall  -container "Иванов_ИИ"
         if self.ver == '3.9':
             big_array_list = [
-                            self.dp, 
+                            self.distr_path, 
                             '-property',
                             '-cinstall',
                             '-container',
@@ -203,6 +227,20 @@ class Installer(object):
             pipe = subprocess.Popen(big_array_list, shell=True, stdout=subprocess.PIPE)
             raw_string = pipe.stdout.read().decode('UTF-8', 'ignore')
             print('raw_string', raw_string)
+
+        elif self.ver == '4.0':
+            big_array_list = [
+                            self.distr_path, 
+                            '-property',
+                            '-cinstall',
+                            '-container',
+                            self.user_name
+                            ]
+            pipe = subprocess.Popen(big_array_list, shell=True, stdout=subprocess.PIPE)
+            raw_string = pipe.stdout.read().decode('UTF-8', 'ignore')
+            print('raw_string', raw_string)
+
+
         else:
             print('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
             sys.exit(1)
@@ -210,10 +248,12 @@ class Installer(object):
 
     def list_key_conteyners(self):
         """Перечисляет список установленных физических контейнеров (флешки, дискеты, етокены)
+            Возвращает значение в виде \\.\FAT12_F\TExpressEx_2015_05_21_16_09_01
         """        
         # "C:\Program Files (x86)\Crypto Pro\CSP\csptest" -keyset -enum_containers -verifycontext -fqcn  -machinekeys
+        
         if self.ver == '3.9':
-            key_list = [    self.dp, 
+            key_list = [    self.distr_path, 
                             '-keyset',
                             '-enum_containers', 
                             '-verifycontext', 
@@ -224,10 +264,23 @@ class Installer(object):
             raw_string = pipe.stdout.read().decode('UTF-8', 'ignore')
             result = re.findall(r'(\\.*)\r\n', raw_string, re.MULTILINE)
             return result
+        elif self.ver == '4.0':
+            #  csptest.exe -keyset -enum_containers -verifycontext  -fqcn
+            key_list = [    self.distr_path, 
+                            '-keyset',
+                            '-enum_containers', 
+                            '-verifycontext', 
+                            '-fqcn',
+                            ]
+            pipe = subprocess.Popen(key_list, shell=True, stdout=subprocess.PIPE)
+            raw_string = pipe.stdout.read().decode('UTF-8', 'ignore')
+            result = re.findall(r'(\\.*)\r\n', raw_string, re.MULTILINE)
+            logging.debug(result)
+            return result
         else:
             print('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
             sys.exit(1)
-
+        
     def choose_conteyner(self):
         """Выбор нужного ключевого контейнера
         """
