@@ -2,6 +2,7 @@
 # -*- coding:utf-8 -*-
 
 import sys, os, re, shutil, glob
+import getpass
 import subprocess
 import logging
 import settings
@@ -10,7 +11,13 @@ from cert_info import cert_info
 class Installer(object):
     """Установщик ЭЦП в реестр КриптоПРО
     """
-    def __init__(self):
+    def __init__(self, mode='cmd'):
+        # mode=('cmd', 'gpp',)
+        # пока поддерживается 2 режима работы cmd и gpp. В cmd пользователь сам вводит
+        # номаер ЭП исходя из списка предложеннных вариантов. 
+        # gpp - скрипт самостоятельно определяет какую ЭП необходимо установить на основе
+        # анализа имени пользователя. 
+        self.mode = mode
         self.current_path = os.path.dirname(os.path.abspath(__file__))
         self.ecp_structure = {} 
         # { 'nlastname': {'ep_path': 'C:/ECP/nlasnmame', 'fio' : 'Иванов Иван Иванович', 'inx': 5} }
@@ -37,18 +44,24 @@ class Installer(object):
         self.ver = self.get_version()
         self.ecps = self.get_list_ecp(search_path=settings.ECP_PATH)
         
-        # получить список найденых закрытых контейнеров ЭП 
-        self.print_list_ecp()
+        if mode == 'cmd':
+            # получить список найденых закрытых контейнеров ЭП 
+            self.print_list_ecp()
 
-        # предложение пользователю ввести номер
-        self.input_number()
+            # предложение пользователю ввести номер
+            self.input_number()
 
-        # подготивительные действия к установке ЭП
-        self.clear_flash() # очищаем флешку от старых контейнеров
-        self.copy_ecp()    # копируем файлы и каталог с контейнером на флешку
+            # подготивительные действия к установке ЭП
+            self.clear_flash() # очищаем флешку от старых контейнеров
+            self.copy_ecp()    # копируем файлы и каталог с контейнером на флешку
 
-        self.key_conteyner = self.choose_conteyner()
-        #logging.debug('Ключевой контейнер %s' % (self.key_conteyner,))
+            self.key_conteyner = self.choose_conteyner()
+            #logging.debug('Ключевой контейнер %s' % (self.key_conteyner,))
+        elif mode == 'gpp':
+            # получаем имя пользователя
+            pass
+            # из структуры self.ecp_structure по имени пользователя определяем номер ЭП
+            # которую нужно установить.
 
     def search_distrib(self):
         """Поиск каталога установки КриптоПРО
@@ -80,7 +93,7 @@ class Installer(object):
         ld = [ name for name in os.listdir(search_path) if os.path.isdir(os.path.join(search_path, name)) ]
         
         if len(ld) == 0:
-            print('Каталог %s с ЭП пуст. Устанавливать нечего!' % (search_path, ))
+            send_error('Каталог %s с ЭП пуст. Устанавливать нечего!' % (search_path, ))
             sys.exit(1)
 
         temp_dict = {}
@@ -104,17 +117,23 @@ class Installer(object):
             Упорядоченных по возрастанию.
         """    
         # { 'nlastname': {'ep_path': 'C:/ECP/nlasnmame', 'fio' : 'Иванов Иван Иванович', 'inx': 5} }
-        for k in self.ecp_structure.keys():
-            print('%2s  :  %2s' % (self.ecp_structure[k]['inx'], self.ecp_structure[k]['fio'],))
-         
-        #for inx in range(1, self.ecps['len'] + 1):
-        #    print('%s : %s' % (inx, self.ecps[inx]))
-        return
+        
+        tmpl = [self.ecp_structure.get(ky).get('inx') for ky in self.ecp_structure.keys() ]
+        tmpl.sort()
+        for inx in tmpl:
+            for k in self.ecp_structure.keys():
+                if self.ecp_structure.get(k).get('inx') == inx:
+                    print('%2s  :  %2s' % (self.ecp_structure[k]['inx'], self.ecp_structure[k]['fio'],))        
         
     def send_error(self, message):
         """Сообщить о ошибке.
         """
-        print(message)
+        if self.mode == 'cmd':
+            print(message)
+        elif self.mode == 'gpp':
+            logging.error(message)
+        else:
+            pass
         return
 
     def input_number(self):
@@ -178,9 +197,21 @@ class Installer(object):
         return None
 
     def copy_ecp(self):
-        """Производим копирование закрытого контейнера на флеш
+        """Производим копирование закрытого контейнера на флеш.
         """
-        src_dir = settings.ECP_PATH + self.ecps[self.select_number] + '/'
+        if self.mode == 'cmd':
+            src_dir = settings.ECP_PATH + self.ecps[self.select_number] + '/'
+        elif self.mode == 'gpp':
+            u_name = getpass.getuser()
+            if self.ecp_structure.get(u_name, ''):
+                src_dir = settings.ECP_PATH + \
+                          self.ecp_structure.get(u_name).get('ep_path') + '/'
+            else:
+                logging.error('ЭП с имененем ключевого контейнера %s не найдено' % (u_name,))
+                sys.exit(1)
+        else:
+            logging.error('Режим работы программы %s не поддерживается' % (self.mode,))
+            sys.exit(1)
         dst_dir = settings.FLASH_PATH + ':'
         for fs_item in os.listdir(src_dir):
             file_path = os.path.join(src_dir, fs_item)
@@ -240,7 +271,7 @@ class Installer(object):
                             ]
             pipe = subprocess.Popen(big_array_list, shell=True, stdout=subprocess.PIPE)
             raw_string = pipe.stdout.read().decode('UTF-8', 'ignore')
-            print('raw_string', raw_string)
+            #print('raw_string', raw_string)
 
         elif self.ver == '4.0':
             big_array_list = [
@@ -252,7 +283,7 @@ class Installer(object):
                             ]
             pipe = subprocess.Popen(big_array_list, shell=True, stdout=subprocess.PIPE)
             raw_string = pipe.stdout.read().decode('UTF-8', 'ignore')
-            print('raw_string', raw_string)
+            #print('raw_string', raw_string)
 
 
         else:
@@ -308,11 +339,3 @@ class Installer(object):
         """Очищаем за собой флешку от ненужных файлов.
         """
         self.clear_flash()
-        #logging.info(self.ecp_structure)
-
-
-if __name__ == '__main__':
-    ins = Installer()
-    # утсанавливаем ЭП
-    ins.install_ep()
-    ins.install_crt()

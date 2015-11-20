@@ -3,7 +3,8 @@
 
 from lib import Installer
 
-ins = Installer()
+# mode = ('cmd', 'gpp',)
+ins = Installer(mode='cmd')
 # утсанавливаем ЭП
 ins.install_ep()
-#ins.install_crt()
+ins.install_crt()
