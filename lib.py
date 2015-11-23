@@ -33,7 +33,7 @@ class Installer(object):
         
         # Проверяем наличие ключевых файловых путей 
         if not os.path.exists(settings.ECP_PATH):
-            send_error('Не определён путь к закрытым контейнерам.')
+            self.send_error('Не определён путь к закрытым контейнерам.')
             sys.exit(1)
 
         if ':' in settings.FLASH_PATH:
@@ -42,7 +42,7 @@ class Installer(object):
             settings.FLASH_PATH += ':'
 
         if not os.path.exists(settings.FLASH_PATH):
-            send_error('Не определён путь к промежуточному носителю.')
+            self.send_error('Не определён путь к промежуточному носителю.')
             sys.exit(1)
 
         logging.basicConfig(filename=self.current_path + '/logs/debug.log',
@@ -104,7 +104,7 @@ class Installer(object):
         ld = [ name for name in os.listdir(search_path) if os.path.isdir(os.path.join(search_path, name)) ]
         
         if len(ld) == 0:
-            send_error('Каталог %s с ЭП пуст. Устанавливать нечего!' % (search_path, ))
+            self.send_error('Каталог %s с ЭП пуст. Устанавливать нечего!' % (search_path, ))
             sys.exit(1)
 
         temp_dict = {}
@@ -153,13 +153,13 @@ class Installer(object):
         try:
             num = int(num)
         except ValueError:
-            send_error('Допустим ввод только чисел!')
+            self.send_error('Допустим ввод только чисел!')
             sys.exit(1)
 
         try:
             self.select_number = num
         except KeyError:
-            send_error('Веденое число не принадлежит доступному диапазону.')
+            self.send_error('Веденое число не принадлежит доступному диапазону.')
             sys.exit(1)
 
         # определяем имя закрытого контейнера
@@ -202,7 +202,7 @@ class Installer(object):
                 elif os.path.isdir(file_path): 
                     shutil.rmtree(file_path)
             except Exception as e:
-                send_error(e)
+                self.send_error(e)
                 sys.exit(1)
         return None
 
@@ -263,7 +263,7 @@ class Installer(object):
             print('raw_string', raw_string)
 
         else:
-            send_error('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
+            self.send_error('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
             sys.exit(1)
         
         
@@ -297,7 +297,7 @@ class Installer(object):
 
 
         else:
-            send_error('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
+            self.send_error('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
             sys.exit(1)
 
 
@@ -332,7 +332,7 @@ class Installer(object):
             result = re.findall(r'(\\.*)\r\n', raw_string, re.MULTILINE)
             return result
         else:
-            send_error('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
+            self.send_error('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
             sys.exit(1)
         
     def choose_conteyner(self):
