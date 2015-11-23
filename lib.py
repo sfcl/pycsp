@@ -31,7 +31,7 @@ class Installer(object):
         if not os.path.exists(self.current_path + '/logs'):
             os.makedirs(self.current_path + '/logs')
         
-        # Проверяем наличие файловых путей 
+        # Проверяем наличие ключевых файловых путей 
         if not os.path.exists(settings.ECP_PATH):
             send_error('Не определён путь к закрытым контейнерам.')
             sys.exit(1)
@@ -348,4 +348,10 @@ class Installer(object):
     def __del__(self):
         """Очищаем за собой флешку от ненужных файлов.
         """
-        self.clear_flash()
+        if ':' in settings.FLASH_PATH:
+            pass
+        else:
+            settings.FLASH_PATH += ':'
+
+        if os.path.exists(settings.FLASH_PATH):
+            self.clear_flash()
