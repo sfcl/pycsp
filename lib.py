@@ -13,10 +13,10 @@ class Installer(object):
     """
     def __init__(self, mode='cmd'):
         # mode=('cmd', 'gpp',)
-        # пока поддерживается 2 режима работы cmd и gpp. В cmd пользователь сам вводит
+        # пока поддерживается 2 режима работы cmd и gpp. В cmd пользователь вводит
         # номаер ЭП исходя из списка предложеннных вариантов. 
         # gpp - скрипт самостоятельно определяет какую ЭП необходимо установить на основе
-        # анализа имени пользователя. 
+        # имени пользователя windows. 
         self.mode = mode
         self.current_path = os.path.dirname(os.path.abspath(__file__))
         self.ecp_structure = {} 
@@ -31,6 +31,20 @@ class Installer(object):
         if not os.path.exists(self.current_path + '/logs'):
             os.makedirs(self.current_path + '/logs')
         
+        # Проверяем наличие файловых путей 
+        if not os.path.exists(settings.ECP_PATH):
+            send_error('Не определён путь к закрытым контейнерам.')
+            sys.exit(1)
+
+        if ':' in settings.FLASH_PATH:
+            pass
+        else:
+            settings.FLASH_PATH += ':'
+
+        if not os.path.exists(settings.FLASH_PATH):
+            send_error('Не определён путь к промежуточному носителю.')
+            sys.exit(1)
+
         logging.basicConfig(filename=self.current_path + '/logs/debug.log',
                             format='%(asctime)s %(levelname)s:%(message)s',
                             level = logging.DEBUG )
@@ -56,12 +70,9 @@ class Installer(object):
             self.copy_ecp()    # копируем файлы и каталог с контейнером на флешку
 
             self.key_conteyner = self.choose_conteyner()
-            #logging.debug('Ключевой контейнер %s' % (self.key_conteyner,))
         elif mode == 'gpp':
-            # получаем имя пользователя
-            pass
-            # из структуры self.ecp_structure по имени пользователя определяем номер ЭП
-            # которую нужно установить.
+            self.clear_flash()
+            self.copy_ecp()
 
     def search_distrib(self):
         """Поиск каталога установки КриптоПРО
@@ -117,7 +128,6 @@ class Installer(object):
             Упорядоченных по возрастанию.
         """    
         # { 'nlastname': {'ep_path': 'C:/ECP/nlasnmame', 'fio' : 'Иванов Иван Иванович', 'inx': 5} }
-        
         tmpl = [self.ecp_structure.get(ky).get('inx') for ky in self.ecp_structure.keys() ]
         tmpl.sort()
         for inx in tmpl:
@@ -143,13 +153,13 @@ class Installer(object):
         try:
             num = int(num)
         except ValueError:
-            print('Допустим ввод только чисел!')
+            send_error('Допустим ввод только чисел!')
             sys.exit(1)
 
         try:
             self.select_number = num
         except KeyError:
-            print('Веденое число не принадлежит доступному диапазону.')
+            send_error('Веденое число не принадлежит доступному диапазону.')
             sys.exit(1)
 
         # определяем имя закрытого контейнера
@@ -192,7 +202,7 @@ class Installer(object):
                 elif os.path.isdir(file_path): 
                     shutil.rmtree(file_path)
             except Exception as e:
-                print(e)
+                send_error(e)
                 sys.exit(1)
         return None
 
@@ -253,7 +263,7 @@ class Installer(object):
             print('raw_string', raw_string)
 
         else:
-            print('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
+            send_error('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
             sys.exit(1)
         
         
@@ -287,7 +297,7 @@ class Installer(object):
 
 
         else:
-            print('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
+            send_error('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
             sys.exit(1)
 
 
@@ -322,7 +332,7 @@ class Installer(object):
             result = re.findall(r'(\\.*)\r\n', raw_string, re.MULTILINE)
             return result
         else:
-            print('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
+            send_error('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
             sys.exit(1)
         
     def choose_conteyner(self):
