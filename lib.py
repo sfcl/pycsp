@@ -70,6 +70,7 @@ class Installer(object):
             self.copy_ecp()    # копируем файлы и каталог с контейнером на флешку
 
             self.key_conteyner = self.choose_conteyner()
+        
         elif mode == 'gpp':
             self.clear_flash()
             self.copy_ecp()
@@ -193,12 +194,15 @@ class Installer(object):
     def clear_flash(self):
         """Очищаем флешку от старых ЭП
         """
-        folder = settings.FLASH_PATH + ':'
+        if ':' in settings.FLASH_PATH:
+            folder = settings.FLASH_PATH
+        else:
+            folder = settings.FLASH_PATH + ':'
         for the_file in os.listdir(folder):
             file_path = os.path.join(folder, the_file)
             try:
                 if os.path.isfile(file_path):
-                    os.unlink(file_path)
+                    os.remove(file_path)
                 elif os.path.isdir(file_path): 
                     shutil.rmtree(file_path)
             except Exception as e:
@@ -222,7 +226,12 @@ class Installer(object):
         else:
             logging.error('Режим работы программы %s не поддерживается' % (self.mode,))
             sys.exit(1)
-        dst_dir = settings.FLASH_PATH + ':'
+
+        if ':' in settings.FLASH_PATH:
+            dst_dir = settings.FLASH_PATH
+        else:
+            dst_dir = settings.FLASH_PATH + ':'
+        #self.send_error('file_path, dst_dir + fs_item'+dst_dir + fs_item)
         for fs_item in os.listdir(src_dir):
             file_path = os.path.join(src_dir, fs_item)
             if os.path.isdir(file_path):
@@ -254,13 +263,12 @@ class Installer(object):
             big_array_list = [
                             self.distr_path, '-keycopy', 
                             '-contsrc', self.key_conteyner,
-                            '-pinsrc', '',
+                            '-pinsrc','',
                             '-contdest', dst_cont,
-                            '-pindest', ''
+                            '-pindest','',
                             ]
             pipe = subprocess.Popen(big_array_list, shell=True, stdout=subprocess.PIPE)
             raw_string = pipe.stdout.read().decode('UTF-8', 'ignore')
-            print('raw_string', raw_string)
 
         else:
             self.send_error('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
@@ -340,6 +348,7 @@ class Installer(object):
         """
         res = self.list_key_conteyners()
         search_pat = 'FAT12_' + settings.FLASH_PATH.upper()
+        search_pat = search_pat.replace(':','')
         for elem in res:
             if re.search(search_pat , elem):
                 return elem
