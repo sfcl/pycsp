@@ -11,3 +11,4 @@ __pycache__/
 
 logs/
 
+hash_table.py

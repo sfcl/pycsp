@@ -9,10 +9,10 @@ import settings
 from cert_info import cert_info
 
 class Installer(object):
-    """Установщик ЭЦП в реестр КриптоПРО
+    """Установщик ЭЦП в реестр КриптоПРО.
     """
     def __init__(self, mode='cmd'):
-        # mode=('cmd', 'gpp',)
+        # mode=('cmd', 'gpp', 'ui')
         # пока поддерживается 2 режима работы cmd и gpp. В cmd пользователь вводит
         # номаер ЭП исходя из списка предложеннных вариантов. 
         # gpp - скрипт самостоятельно определяет какую ЭП необходимо установить на основе
@@ -20,7 +20,7 @@ class Installer(object):
         self.mode = mode
         self.current_path = os.path.dirname(os.path.abspath(__file__))
         self.ecp_structure = {} 
-        # { 'nlastname': {'ep_path': 'C:/ECP/nlasnmame', 'fio' : 'Иванов Иван Иванович', 'inx': 5} }
+        # { 'nlastname': {'secure_cont': 'TExpressEx_2014_12_10_15_06_2', 'fio' : 'Иванов Иван Иванович', 'inx': 5} }
         self.ver = ''
         self.key_conteyner = ''
         self.user_name = ''
@@ -33,16 +33,7 @@ class Installer(object):
         
         # Проверяем наличие ключевых файловых путей 
         if not os.path.exists(settings.ECP_PATH):
-            self.send_error('Не определён путь к закрытым контейнерам.')
-            sys.exit(1)
-
-        if ':' in settings.FLASH_PATH:
-            pass
-        else:
-            settings.FLASH_PATH += ':'
-
-        if not os.path.exists(settings.FLASH_PATH):
-            self.send_error('Не определён путь к промежуточному носителю.')
+            self.send_error('Не определён путь к закрытым контейнерам. Настройте файл settings.py')
             sys.exit(1)
 
         logging.basicConfig(filename=self.current_path + '/logs/debug.log',
@@ -53,89 +44,21 @@ class Installer(object):
         if not self.distr_path :
             self.send_error('Программа КриптоПРО не установлена!')
             sys.exit(1)
-            return
 
         self.ver = self.get_version()
-        self.ecps = self.get_list_ecp(search_path=settings.ECP_PATH)
+        self.ecps = self.get_list_ecp()
         
         if mode == 'cmd':
             # получить список найденых закрытых контейнеров ЭП 
             self.print_list_ecp()
-
             # предложение пользователю ввести номер
             self.input_number()
-
-            # подготивительные действия к установке ЭП
-            self.clear_flash() # очищаем флешку от старых контейнеров
-            self.copy_ecp()    # копируем файлы и каталог с контейнером на флешку
-
             self.key_conteyner = self.choose_conteyner()
-        
+
         elif mode == 'gpp':
-            self.clear_flash()
-            self.copy_ecp()
+            # установка ЭП в молчаливом режиме
+            self.key_conteyner = self.choose_conteyner()
 
-    def search_distrib(self):
-        """Поиск каталога установки КриптоПРО
-        """
-        search_paths = ['C:/Program Files (x86)/Crypto Pro/CSP',
-                        'C:/Program Files/Crypto Pro/CSP',]
-        for path_str in search_paths:
-            if self.path_exist(path_str):
-                path_str = path_str + '/csptest.exe'
-                return path_str
-                
-        return None
-
-    
-    def path_exist(self, dir_path=''):
-        """Проверяет, есть ли каталог с данным именем
-        """
-        try:
-            os.stat(dir_path)
-        except FileNotFoundError:
-            return False
-        
-        return True
-
-    def get_list_ecp(self, search_path=''):
-        """Составляет список каталогов закрытх контейнеров
-        """
-        # http://stackoverflow.com/questions/141291/how-to-list-only-top-level-directories-in-python
-        ld = [ name for name in os.listdir(search_path) if os.path.isdir(os.path.join(search_path, name)) ]
-        
-        if len(ld) == 0:
-            self.send_error('Каталог %s с ЭП пуст. Устанавливать нечего!' % (search_path, ))
-            sys.exit(1)
-
-        temp_dict = {}
-        counter = 1
-        for elem in ld:
-            temp_dict[counter] = elem
-            cert_pattern = settings.ECP_PATH + '/' + elem + '/*.cer'
-            cert_file = glob.glob(cert_pattern)
-            cert_file = cert_file[0]
-            fio = cert_info(cert_file)
-            self.ecp_structure[elem] = {'ep_path':  settings.ECP_PATH + '/' + elem,
-                                        'fio': fio, 'inx': counter,
-                                        }
-            counter += 1
-        temp_dict['len'] = counter - 1
-
-        return temp_dict
-        
-    def print_list_ecp(self):
-        """Распечатка списка закрытых контейнеров и сертификатов.
-            Упорядоченных по возрастанию.
-        """    
-        # { 'nlastname': {'ep_path': 'C:/ECP/nlasnmame', 'fio' : 'Иванов Иван Иванович', 'inx': 5} }
-        tmpl = [self.ecp_structure.get(ky).get('inx') for ky in self.ecp_structure.keys() ]
-        tmpl.sort()
-        for inx in tmpl:
-            for k in self.ecp_structure.keys():
-                if self.ecp_structure.get(k).get('inx') == inx:
-                    print('%2s  :  %2s' % (self.ecp_structure[k]['inx'], self.ecp_structure[k]['fio'],))        
-        
     def send_error(self, message):
         """Сообщить о ошибке.
         """
@@ -146,6 +69,92 @@ class Installer(object):
         else:
             pass
         return
+    
+    def search_distrib(self):
+        """Поиск каталога установки КриптоПРО
+        """
+        search_paths = ['C:/Program Files (x86)/Crypto Pro/CSP',
+                        'C:/Program Files/Crypto Pro/CSP',]
+        for path_str in search_paths:
+            if self.path_exist(path_str):
+                path_str = path_str + '/csptest.exe'
+                return path_str
+        # если программа не установленна, то дальнейшее продолжение невозможно
+        self.send_error('Программа csptest не установлена.')
+        sys.exit(1)
+
+
+    def choose_conteyner(self):
+        """Выбор ключевого контейнера. На основании введенного пользователем номера.
+        """
+        if self.mode == 'cmd':
+            # { 'nlastname': {'secure_cont': 'TExpressEx_2014_12_10_15_06_2', 'fio' : 'Иванов Иван Иванович', 'inx': 5} }
+            for elem in self.ecp_structure.keys():
+                data = self.ecp_structure.get(elem, '')
+                if data['inx'] == self.select_number:
+                    return data['secure_cont']
+
+            self.send_error('Имя закрытого контейнера не найдено (method: selt.choose_conteyner)')
+            
+        elif self.mode == 'gpp':
+            windows_user_name = getpass.getuser()
+            data = self.ecp_structure.get(windows_user_name, '')
+            if data:
+                return data['secure_cont']
+            else:
+                self.send_error('Для пользователя %s не найдено закрытого контейнера' % (windows_user_name,))
+                
+        sys.exit(1)
+        return None
+
+    def path_exist(self, dir_path=''):
+        """Проверяет, есть ли каталог с данным именем
+        """
+        try:
+            os.stat(dir_path)
+        except FileNotFoundError:
+            return False
+        return True
+
+    def get_list_ecp(self):
+        """Заполняем структуру self.ecp_structure нужными данными
+        """
+        #заполняем структуру данных
+        #{ 'nlastname': {'secure_cont': 'TExpressEx_2014_12_10_15_06_2', 'fio' : 'Иванов Иван Иванович', 'inx': 5} }
+        # просматриваем все каталоги settings.ECP_PATH
+        # http://stackoverflow.com/questions/141291/how-to-list-only-top-level-directories-in-python
+        ld = [ name for name in os.listdir(settings.ECP_PATH) if os.path.isdir(os.path.join(settings.ECP_PATH, name)) ]
+
+        if len(ld) == 0:
+            self.send_error('Каталог %s с закрытыми контейнерами ЭП пуст. Устанавливать нечего!' % (settings.ECP_PATH, ))
+            sys.exit(1)
+
+        temp_dict = {}
+        counter = 1
+        for elem in ld:
+            cert_file = settings.ECP_PATH + elem + '.cer'
+            # внутри закрытого контейнера находим файл name.key и считываем название контейнера
+            with open(settings.ECP_PATH + elem + '/name.key', 'r', encoding="latin1") as fd:
+                key_name = fd.read()
+                key_name = key_name[4:]
+            # TODO. Добавить проверку наличие файла name.key
+            fio = cert_info(cert_file)
+            self.ecp_structure[elem] = {'secure_cont':  key_name, 'fio': fio, 'inx': counter}
+            counter += 1
+        temp_dict['len'] = counter - 1
+        return temp_dict
+        
+    def print_list_ecp(self):
+        """Распечатка списка имеющихся закрытых контейнеров упорядоченных по возрастанию.
+        """
+        #{ 'nlastname': {'secure_cont': 'TExpressEx_2014_12_10_15_06_5', 'fio' : 'Иванов Иван Иванович', 'inx': 5} }
+        tmpl = [self.ecp_structure.get(ky).get('inx') for ky in self.ecp_structure.keys() ]
+        tmpl.sort()
+        for inx in tmpl:
+            for k in self.ecp_structure.keys():
+                if self.ecp_structure.get(k).get('inx') == inx:
+                    print('%2s  :  %2s' % (self.ecp_structure[k]['inx'], self.ecp_structure[k]['fio'],))
+                    
 
     def input_number(self):
         """Примитивный диалог взаимодействия с пользователем. Определяет атрибут self.user_name.
@@ -158,17 +167,26 @@ class Installer(object):
             sys.exit(1)
 
         try:
-            self.select_number = num
+            ep_count = self.ecps['len'] + 1
+            ep_list = range(1, ep_count)
+            if num in ep_list:
+                self.select_number = num
+            else:
+                raise(KeyError)
         except KeyError:
             self.send_error('Веденое число не принадлежит доступному диапазону.')
             sys.exit(1)
 
-        # определяем имя закрытого контейнера
-        tmp = self.ecps.get(self.select_number)
-        #tmp = tmp.split(' ')
-        tmp = re.split('\s+', tmp)
-        tmp = tmp[0] + '_' +tmp[1][0] + tmp[2][0]
-        self.user_name = tmp
+        for k in self.ecp_structure.keys():
+            if self.ecp_structure.get(k, '').get('inx') == self.select_number:
+                fio = self.ecp_structure.get(k, '').get('fio')
+                break
+
+        fio = fio.split(' ')
+        fio = fio[0] + '_' + fio[1][0] + fio[2][0]
+        self.user_name = fio
+        return None
+            
 
     def get_version(self):
         """Получить версию программы csptest
@@ -190,58 +208,6 @@ class Installer(object):
         result = result[0:2]
         result = '.'.join(result)
         return result
-
-    def clear_flash(self):
-        """Очищаем флешку от старых ЭП
-        """
-        if ':' in settings.FLASH_PATH:
-            folder = settings.FLASH_PATH
-        else:
-            folder = settings.FLASH_PATH + ':'
-        for the_file in os.listdir(folder):
-            file_path = os.path.join(folder, the_file)
-            try:
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
-                elif os.path.isdir(file_path): 
-                    shutil.rmtree(file_path)
-            except Exception as e:
-                self.send_error(e)
-                sys.exit(1)
-        return None
-
-    def copy_ecp(self):
-        """Производим копирование закрытого контейнера на флеш.
-        """
-        if self.mode == 'cmd':
-            src_dir = settings.ECP_PATH + self.ecps[self.select_number] + '/'
-        elif self.mode == 'gpp':
-            u_name = getpass.getuser()
-            if self.ecp_structure.get(u_name, ''):
-                src_dir = settings.ECP_PATH + \
-                          self.ecp_structure.get(u_name).get('ep_path') + '/'
-            else:
-                logging.error('ЭП с имененем ключевого контейнера %s не найдено' % (u_name,))
-                sys.exit(1)
-        else:
-            logging.error('Режим работы программы %s не поддерживается' % (self.mode,))
-            sys.exit(1)
-
-        if ':' in settings.FLASH_PATH:
-            dst_dir = settings.FLASH_PATH
-        else:
-            dst_dir = settings.FLASH_PATH + ':'
-        #self.send_error('file_path, dst_dir + fs_item'+dst_dir + fs_item)
-        for fs_item in os.listdir(src_dir):
-            file_path = os.path.join(src_dir, fs_item)
-            if os.path.isdir(file_path):
-                # если элемент ФС является каталогом
-                shutil.copytree(file_path, dst_dir + fs_item, ignore=None)
-            else:
-                # если элемент ФС является файлом
-                shutil.copy2(file_path, dst_dir)
-
-        return None
 
     def install_ep(self):
         """Установка ЭП
@@ -307,60 +273,3 @@ class Installer(object):
         else:
             self.send_error('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
             sys.exit(1)
-
-
-    def list_key_conteyners(self):
-        """Перечисляет список установленных физических контейнеров (флешки, дискеты, етокены)
-            Возвращает значение в виде \\.\FAT12_F\TExpressEx_2015_05_21_16_09_01
-        """        
-        # "C:\Program Files (x86)\Crypto Pro\CSP\csptest" -keyset -enum_containers -verifycontext -fqcn  -machinekeys
-        
-        if self.ver == '3.9':
-            key_list = [    self.distr_path, 
-                            '-keyset',
-                            '-enum_containers', 
-                            '-verifycontext', 
-                            '-fqcn',
-                            '-machinekeys',
-                            ]
-            pipe = subprocess.Popen(key_list, shell=True, stdout=subprocess.PIPE)
-            raw_string = pipe.stdout.read().decode('UTF-8', 'ignore')
-            result = re.findall(r'(\\.*)\r\n', raw_string, re.MULTILINE)
-            return result
-        elif self.ver == '4.0':
-            #  csptest.exe -keyset -enum_containers -verifycontext  -fqcn
-            key_list = [    self.distr_path, 
-                            '-keyset',
-                            '-enum_containers', 
-                            '-verifycontext', 
-                            '-fqcn',
-                            ]
-            pipe = subprocess.Popen(key_list, shell=True, stdout=subprocess.PIPE)
-            raw_string = pipe.stdout.read().decode('UTF-8', 'ignore')
-            result = re.findall(r'(\\.*)\r\n', raw_string, re.MULTILINE)
-            return result
-        else:
-            self.send_error('Поддержка программы csptest версии %s не реализована' % (self.ver, ))
-            sys.exit(1)
-        
-    def choose_conteyner(self):
-        """Выбор нужного ключевого контейнера
-        """
-        res = self.list_key_conteyners()
-        search_pat = 'FAT12_' + settings.FLASH_PATH.upper()
-        search_pat = search_pat.replace(':','')
-        for elem in res:
-            if re.search(search_pat , elem):
-                return elem
-        return None
-    
-    def __del__(self):
-        """Очищаем за собой флешку от ненужных файлов.
-        """
-        if ':' in settings.FLASH_PATH:
-            pass
-        else:
-            settings.FLASH_PATH += ':'
-
-        if os.path.exists(settings.FLASH_PATH):
-            self.clear_flash()
