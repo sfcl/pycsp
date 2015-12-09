@@ -98,6 +98,7 @@ class Installer(object):
             
         elif self.mode == 'gpp':
             windows_user_name = getpass.getuser()
+            windows_user_name = windows_user_name.lower()
             data = self.ecp_structure.get(windows_user_name, '')
             if data:
                 return data['secure_cont']

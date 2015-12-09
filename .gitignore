@@ -12,3 +12,6 @@ __pycache__/
 logs/
 
 hash_table.py
+
+
+starter.py
