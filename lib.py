@@ -6,6 +6,7 @@ import getpass
 import subprocess
 import logging
 import settings
+from hash_table import hash_table
 from cert_info import cert_info
 
 class Installer(object):
@@ -121,7 +122,10 @@ class Installer(object):
         """Заполняем структуру self.ecp_structure нужными данными
         """
         #заполняем структуру данных
-        #{ 'nlastname': {'secure_cont': 'TExpressEx_2014_12_10_15_06_2', 'fio' : 'Иванов Иван Иванович', 'inx': 5} }
+        # { 'nlastname': {'secure_cont': 'TExpressEx_2014_12_10_15_06_2', 'fio' : 'Иванов Иван Иванович', 'inx': 5} }
+
+        # 
+        # {'nlastname': 'key_name_folder'}
         # просматриваем все каталоги settings.ECP_PATH
         # http://stackoverflow.com/questions/141291/how-to-list-only-top-level-directories-in-python
         ld = [ name for name in os.listdir(settings.ECP_PATH) if os.path.isdir(os.path.join(settings.ECP_PATH, name)) ]
@@ -132,15 +136,15 @@ class Installer(object):
 
         temp_dict = {}
         counter = 1
-        for elem in ld:
-            cert_file = settings.ECP_PATH + elem + '.cer'
-            # внутри закрытого контейнера находим файл name.key и считываем название контейнера
-            with open(settings.ECP_PATH + elem + '/name.key', 'r', encoding="latin1") as fd:
+
+        for id_uname in hash_table.keys():
+            with open(settings.ECP_PATH + hash_table.get(id_uname) + '/name.key', 'r', encoding="latin1") as fd:
                 key_name = fd.read()
                 key_name = key_name[4:]
-            # TODO. Добавить проверку наличие файла name.key
+            
+            cert_file = settings.ECP_PATH + id_uname + '.cer'
             fio = cert_info(cert_file)
-            self.ecp_structure[elem] = {'secure_cont':  key_name, 'fio': fio, 'inx': counter}
+            self.ecp_structure[id_uname] = {'secure_cont':  key_name, 'fio': fio, 'inx': counter}
             counter += 1
         temp_dict['len'] = counter - 1
         return temp_dict
