@@ -7,6 +7,7 @@ import subprocess
 import logging
 import settings
 from hash_table import hash_table
+from synonym_table import synonym_table
 from cert_info import cert_info
 
 class Installer(object):
@@ -58,6 +59,7 @@ class Installer(object):
 
         elif mode == 'gpp':
             # установка ЭП в молчаливом режиме
+            self.set_cont_name()
             self.key_conteyner = self.choose_conteyner()
 
     def send_error(self, message):
@@ -70,7 +72,24 @@ class Installer(object):
         else:
             pass
         return
-    
+
+    def set_cont_name(self):
+        """Set close conteyner name
+        """
+        if self.mode == 'cmd':
+            pass
+        elif self.mode == 'gpp':
+            win32_user_name = getpass.getuser()
+            win32_user_name = win32_user_name.lower()
+            win32_user_name = synonym_table.get(win32_user_name, win32_user_name)
+            #print(self.ecp_structure)
+            fio = self.ecp_structure.get(win32_user_name)
+            print(win32_user_name)
+            fio = fio.get('fio')
+            fio = fio.split(' ')
+            fio = fio[0] + '_' + fio[1][0] + fio[2][0]
+            self.user_name = fio
+            
     def search_distrib(self):
         """Поиск каталога установки КриптоПРО
         """
@@ -98,13 +117,14 @@ class Installer(object):
             self.send_error('Имя закрытого контейнера не найдено (method: selt.choose_conteyner)')
             
         elif self.mode == 'gpp':
-            windows_user_name = getpass.getuser()
-            windows_user_name = windows_user_name.lower()
-            data = self.ecp_structure.get(windows_user_name, '')
+            win32_user_name = getpass.getuser()
+            win32_user_name = win32_user_name.lower()
+            win32_user_name = synonym_table.get(win32_user_name, win32_user_name)
+            data = self.ecp_structure.get(win32_user_name, '')
             if data:
                 return data['secure_cont']
             else:
-                self.send_error('Для пользователя %s не найдено закрытого контейнера' % (windows_user_name,))
+                self.send_error('Для пользователя %s не найдено закрытого контейнера' % (win32_user_name,))
                 
         sys.exit(1)
         return None
