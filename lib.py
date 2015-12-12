@@ -216,7 +216,7 @@ class Installer(object):
     def get_version(self):
         """Получить версию программы csptest
         """
-        if self.path_exist(dir_path='./bin/filever.exe'):
+        if self.path_exist(dir_path=self.current_path + '/bin/filever.exe'):
             pass
         else:
             self.send_error('Не найдена программа filever.exe. Дальнейшее продолжение невозможно.')
