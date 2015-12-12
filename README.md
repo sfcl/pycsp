@@ -33,24 +33,24 @@ main_gpp.py - молчаливый режим.
 3.  Переименовываем имена файлов сертификатов пользователей в соответствии
 с именами пользователей Windows
 4.  Определяем в файле hash_table.py словарь hash_table. Пример структуры:
-```
-#!/usr/bin/env python3
-# -*- coding:utf-8 -*-
-hash_table = {
-'iivanov': 'ivanov.000',
-'ppetrov': 'petrov.000',
-}
+  ```
+  #!/usr/bin/env python3
+  # -*- coding:utf-8 -*-
+  hash_table = {
+  'iivanov': 'ivanov.000',
+  'ppetrov': 'petrov.000',
+  }
 
-```
+  ```
 5.  Определяем в файле synonym_table.py синонимы. Словарь заполняется
 если необходимо пользователю установить ЭП другого пользователя.
 Если не нужно, то оставляем словарь пустым. Пример:
-```
-#!/usr/bin/env python3
-# -*- coding:utf-8 -*-
-synonym_table = {
-'psidorov': 'ipetrov',
-}
+  ```
+  #!/usr/bin/env python3
+  # -*- coding:utf-8 -*-
+  synonym_table = {
+  'psidorov': 'ipetrov',
+  }
 
-```
+  ```
 
